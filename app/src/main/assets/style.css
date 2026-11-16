@@ -1,0 +1,664 @@
+/* הסתרת הרכיבים המקוריים של האתר כשהממשק החדש פעיל */
+body.sms-modern-active > form,
+body.sms-modern-active > div:not(#sms-modern-app),
+body.sms-modern-active > iframe {
+  display: none !important;
+}
+
+body.sms-modern-active {
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background-color: #f0f2f5 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  direction: rtl;
+}
+
+#sms-modern-app {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  background-color: #ffffff;
+  color: #111b21;
+  box-sizing: border-box;
+}
+
+#sms-modern-app * {
+  box-sizing: border-box;
+}
+
+/* סרגל צד ימני - רשימת שיחות */
+.sms-sidebar {
+  width: 340px;
+  min-width: 280px;
+  max-width: 400px;
+  border-left: 1px solid #e9edef;
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  height: 100%;
+}
+
+.sms-sidebar-header {
+  padding: 12px 16px;
+  background-color: #f0f2f5;
+  border-bottom: 1px solid #e9edef;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sms-sidebar-title-wrap h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #111b21;
+}
+
+.sms-balance-badge {
+  font-size: 11px;
+  color: #008069;
+  font-weight: 600;
+}
+
+.sms-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sms-icon-btn {
+  background: #ffffff;
+  border: 1px solid #d1d7db;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3b4a54;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s;
+}
+
+.sms-icon-btn:hover {
+  background: #f5f6f6;
+}
+
+.sms-icon-btn.primary {
+  background: #008069;
+  color: #ffffff;
+  border-color: #008069;
+}
+
+.sms-icon-btn.primary:hover {
+  background: #016b58;
+}
+
+.sms-icon-btn.danger {
+  color: #d93025;
+  border-color: #f5c2c0;
+}
+
+.sms-icon-btn.active-toggle {
+  background: #d9fdd3;
+  border-color: #008069;
+  color: #008069;
+}
+
+/* תפריט בחירת צליל התראה */
+.sms-sound-menu {
+  display: none;
+  position: absolute;
+  top: 104px;
+  left: 16px;
+  width: 230px;
+  background: #ffffff;
+  border: 1px solid #d1d7db;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  padding: 8px;
+  z-index: 200;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sms-sound-menu.open {
+  display: flex;
+}
+
+.sms-sound-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #111b21;
+}
+
+.sms-sound-option:hover {
+  background: #f0f2f5;
+}
+
+.sms-sound-option.selected {
+  background: #e7fce3;
+  color: #008069;
+  font-weight: 600;
+}
+
+/* שורת חיפוש */
+.sms-search-box {
+  padding: 8px 12px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e9edef;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.sms-search-box input {
+  flex: 1;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid #e9edef;
+  background-color: #f0f2f5;
+  font-size: 13px;
+  outline: none;
+}
+
+.sms-search-box input:focus {
+  background-color: #ffffff;
+  border-color: #008069;
+}
+
+/* לשוניות סינון */
+.sms-filter-tabs {
+  display: flex;
+  padding: 6px 10px;
+  gap: 4px;
+  border-bottom: 1px solid #e9edef;
+  background: #ffffff;
+}
+
+.sms-filter-tab {
+  flex: 1;
+  padding: 5px 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  background: #f0f2f5;
+  color: #54656f;
+  cursor: pointer;
+}
+
+.sms-filter-tab.active {
+  background: #008069;
+  color: #ffffff;
+}
+
+/* באנר טעינת היסטוריה */
+.sms-loading-banner {
+  display: none;
+  background: #fff8c5;
+  color: #6f5900;
+  font-size: 11.5px;
+  padding: 5px 12px;
+  text-align: center;
+  border-bottom: 1px solid #eedc82;
+}
+
+/* רשימת שיחות */
+.sms-chat-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.sms-chat-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f0f2f5;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.sms-chat-item:hover {
+  background-color: #f5f6f6;
+}
+
+.sms-chat-item.active {
+  background-color: #f0f2f5;
+}
+
+.sms-chat-item.unread {
+  background-color: #f0fbf6;
+}
+
+.sms-chat-item.unread .sms-chat-name {
+  font-weight: 800;
+  color: #008069;
+}
+
+.sms-chat-item.unread .sms-chat-preview {
+  color: #111b21;
+  font-weight: 600;
+}
+
+.sms-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #008069;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sms-chat-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sms-chat-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+.sms-chat-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #111b21;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sms-chat-time {
+  font-size: 11px;
+  color: #667781;
+  flex-shrink: 0;
+}
+
+.sms-chat-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: #667781;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sms-unanswered-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #25d366;
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+
+.sms-unread-badge {
+  background-color: #25d366;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: bold;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+
+/* אזור שיחה ראשי */
+.sms-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #efeae2;
+  position: relative;
+}
+
+.sms-main-header {
+  padding: 10px 16px;
+  background-color: #f0f2f5;
+  border-bottom: 1px solid #e9edef;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sms-main-contact-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.sms-main-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: #111b21;
+}
+
+.sms-main-subtitle {
+  font-size: 12px;
+  color: #667781;
+}
+
+/* אזור בועות ההודעות */
+.sms-messages-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* בועות הודעה קומפקטיות בגודל הטקסט בלבד */
+.sms-bubble {
+  display: inline-block;
+  width: fit-content;
+  max-width: 72%;
+  padding: 6px 10px 4px 10px;
+  border-radius: 10px;
+  margin-bottom: 2px;
+  line-height: 1.35;
+  font-size: 14px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+.sms-bubble.incoming {
+  align-self: flex-start;
+  background-color: #ffffff;
+  border-top-right-radius: 2px;
+}
+
+.sms-bubble.outgoing {
+  align-self: flex-end;
+  background-color: #d9fdd3;
+  border-top-left-radius: 2px;
+}
+
+.sms-bubble-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  padding: 0;
+}
+
+.sms-bubble-text a {
+  color: #027eb5;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+/* תאריך ושעה קומפקטיים בשורה תחתונה צמודה */
+.sms-bubble-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  font-size: 10.5px;
+  color: #667781;
+  margin-top: 2px;
+  line-height: 1;
+}
+
+.sms-otp-btn {
+  background: #e7fce3;
+  border: 1px solid #008069;
+  color: #008069;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* אזור כתיבת הודעה */
+.sms-composer-wrap {
+  background-color: #f0f2f5;
+  padding: 8px 14px;
+  border-top: 1px solid #e9edef;
+}
+
+.sms-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #54656f;
+}
+
+.sms-format-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sms-tool-btn {
+  background: #ffffff;
+  border: 1px solid #d1d7db;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #3b4a54;
+}
+
+.sms-tool-btn:hover {
+  background: #e9edef;
+}
+
+.sms-input-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.sms-input-bar textarea {
+  flex: 1;
+  min-height: 40px;
+  max-height: 120px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d7db;
+  font-family: inherit;
+  font-size: 14px;
+  resize: none;
+  outline: none;
+}
+
+.sms-input-bar textarea:focus {
+  border-color: #008069;
+}
+
+.sms-send-btn {
+  background-color: #008069;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0 18px;
+  height: 40px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.sms-send-btn:disabled {
+  background-color: #8696a0;
+  cursor: not-allowed;
+}
+
+/* חלוניות קופצות לאימוג'י ותבניות */
+.sms-popover {
+  display: none;
+  position: absolute;
+  bottom: 92px;
+  right: 16px;
+  background: #ffffff;
+  border: 1px solid #d1d7db;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  padding: 10px;
+  z-index: 150;
+}
+
+.sms-popover.open {
+  display: flex;
+}
+
+.sms-emoji-picker {
+  width: 260px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sms-emoji-item {
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.sms-emoji-item:hover {
+  background: #f0f2f5;
+}
+
+.sms-templates-popover {
+  width: 280px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sms-template-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #f5f6f6;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.sms-template-item:hover {
+  background: #e7fce3;
+}
+
+/* חלונות מודאליים */
+.sms-modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 20, 26, 0.5);
+  z-index: 500;
+  align-items: center;
+  justify-content: center;
+}
+
+.sms-modal-backdrop.open {
+  display: flex;
+}
+
+.sms-modal {
+  background: #ffffff;
+  width: 440px;
+  max-width: 92vw;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+}
+
+.sms-modal-header {
+  padding: 12px 16px;
+  background: #008069;
+  color: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sms-modal-header h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.sms-modal-close {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.sms-modal-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sms-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+}
+
+.sms-field-group input {
+  padding: 8px 10px;
+  border: 1px solid #d1d7db;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.sms-contact-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid #f0f2f5;
+  font-size: 13px;
+}
+
+.sms-contact-row:hover {
+  background: #f5f6f6;
+}
+
+#sms-restore-btn {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  z-index: 9999;
+  background: #008069;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
