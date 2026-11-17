@@ -11,18 +11,34 @@
   let quickTemplates = JSON.parse(localStorage.getItem('sms_quick_templates') || '["תודה רבה!", "אחזור אליך בהקדם.", "אני בדרך.", "התקבל, תודה."]');
   let draftsByContact = JSON.parse(localStorage.getItem('sms_drafts_by_contact') || '{}');
   let unreadCounts = JSON.parse(localStorage.getItem('sms_unread_counts') || '{}');
-  let allMessages = [];
+
+  // טעינת מטמון הודעות ומזהים מוכרים למניעת התראות כפולות ברענון
+  let allMessages = JSON.parse(localStorage.getItem('sms_cached_messages') || '[]');
+  let knownMessageIds = new Set(JSON.parse(localStorage.getItem('sms_known_msg_ids') || '[]'));
+  allMessages.forEach(m => knownMessageIds.add(m.id));
+
   let activeContact = null;
   let activeFilterTab = 'all'; // 'all' | 'incoming' | 'outgoing' | 'unanswered'
   let soundEnabled = localStorage.getItem('sms_sound_enabled') !== 'false';
   let selectedSoundType = localStorage.getItem('sms_sound_type') || 'double_bell';
-  let knownMessageIds = new Set();
 
-  // --- משתני ניהול טעינת היסטוריה הדרגתית ---
+  // --- משתני ניהול טעינת היסטוריה ---
   let historyDocState = document;
-  let highestLoadedPage = 1;
+  let loadedPageNumbers = new Set([1]);
   let isLoadingHistory = false;
   let noMoreHistoryPages = false;
+
+  function saveMessagesCache() {
+    try {
+      // שמירת עד 3000 הודעות אחרונות ומזהים מוכרים למניעת חריגת נפח
+      const trimmedMsgs = allMessages.slice(-3000);
+      localStorage.setItem('sms_cached_messages', JSON.stringify(trimmedMsgs));
+      const trimmedIds = Array.from(knownMessageIds).slice(-5000);
+      localStorage.setItem('sms_known_msg_ids', JSON.stringify(trimmedIds));
+    } catch (e) {
+      console.warn('שגיאה בשמירת מטמון הודעות:', e);
+    }
+  }
 
   function normalizePhone(num) {
     if (!num) return '';
@@ -294,11 +310,17 @@
     }
   }
 
-  // --- 2. חילוץ הודעות וטעינת היסטוריה ללא הגבלת בלוקים ---
+  // --- 2. חילוץ הודעות עם מזהה אחיד וטעינת היסטוריה מלאה ---
   function extractCellTextWithLineBreaks(cell) {
     const clone = cell.cloneNode(true);
     clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
     return clone.textContent.replace(/\r\n/g, '\n').trim();
+  }
+
+  function buildCanonicalMessageId(number, time, text, isOutgoing) {
+    const cleanTime = (time || '').replace(/\s+/g, ' ').trim();
+    const cleanText = (text || '').replace(/\s+/g, ' ').trim().slice(0, 35);
+    return `${number}_${isOutgoing ? 'OUT' : 'IN'}_${cleanTime}_${cleanText}`;
   }
 
   function parseMessagesFromDoc(doc) {
@@ -322,7 +344,7 @@
 
         const number = normalizePhone(rawNum);
         const isOutgoing = directionRaw.includes('יוצאת');
-        const id = `${number}_${time}_${text.slice(0, 20)}`;
+        const id = buildCanonicalMessageId(number, time, text, isOutgoing);
         msgs.push({ id, number, rawNum, time, text, isOutgoing, status, isOptimistic: false });
       }
     });
@@ -357,12 +379,19 @@
         existingIds.add(m.id);
         changed = true;
 
+        // התראה קופצת רק אם זהו סבב בדיקה חי וההודעה מעולם לא נראתה בעבר
         if (isLivePoll && !m.isOutgoing && !knownMessageIds.has(m.id)) {
           newlyArrivedIncoming.push(m);
         }
         knownMessageIds.add(m.id);
+      } else {
+        knownMessageIds.add(m.id);
       }
     });
+
+    if (changed) {
+      saveMessagesCache();
+    }
 
     if (newlyArrivedIncoming.length > 0) {
       newlyArrivedIncoming.forEach(m => {
@@ -387,20 +416,50 @@
   function updateLoadMoreButtonUI() {
     const btn = document.getElementById('btn-load-more-history');
     if (!btn) return;
+    const countLoaded = loadedPageNumbers.size;
     if (noMoreHistoryPages) {
       btn.disabled = true;
-      btn.innerText = `✓ כל ההיסטוריה נטענה (${highestLoadedPage} עמודים)`;
+      btn.innerText = `✓ כל ההיסטוריה נטענה (${countLoaded} עמודים)`;
       btn.style.opacity = '0.65';
     } else if (isLoadingHistory) {
       btn.disabled = true;
-      btn.innerText = `טוען עמוד ${highestLoadedPage + 1}...`;
+      btn.innerText = `טוען עמודים... (נטענו ${countLoaded} עמ')`;
     } else {
       btn.disabled = false;
-      btn.innerText = `📜 טען היסטוריה נוספת (נטענו ${highestLoadedPage} עמ')`;
+      btn.innerText = `📜 טען היסטוריה נוספת (נטענו ${countLoaded} עמ')`;
     }
   }
 
-  async function loadMorePagesBatch(batchSize = 15) {
+  function findNextUnloadedPageNum(doc) {
+    const tbl = doc.getElementById('MainContent_GridView1');
+    if (!tbl) return null;
+    const links = Array.from(tbl.querySelectorAll('a[href*="Page$"]'));
+    const maxAlreadyLoaded = Math.max(...Array.from(loadedPageNumbers));
+
+    // עדיפות ראשונה: עמוד שמספרו גדול מכל מה שנטען עד כה (כולל קישור '...' שמוביל לבלוק הבא)
+    const forwardPages = links
+      .map(a => {
+        const m = a.getAttribute('href').match(/Page\$(\d+)/);
+        return m ? Number(m[1]) : null;
+      })
+      .filter(n => n !== null && !loadedPageNumbers.has(n) && n > maxAlreadyLoaded)
+      .sort((a, b) => a - b);
+
+    if (forwardPages.length > 0) return forwardPages[0];
+
+    // עדיפות שנייה: כל עמוד אחר שטרם נטען בבלוק הנוכחי
+    const anyUnloaded = links
+      .map(a => {
+        const m = a.getAttribute('href').match(/Page\$(\d+)/);
+        return m ? Number(m[1]) : null;
+      })
+      .filter(n => n !== null && !loadedPageNumbers.has(n))
+      .sort((a, b) => a - b);
+
+    return anyUnloaded.length > 0 ? anyUnloaded[0] : null;
+  }
+
+  async function loadMorePagesBatch(batchSize = 20) {
     if (isLoadingHistory || noMoreHistoryPages) return;
     const banner = document.getElementById('sms-loading-banner');
     const form = document.querySelector('form');
@@ -412,23 +471,15 @@
     let loadedInThisBatch = 0;
 
     while (loadedInThisBatch < batchSize) {
-      const links = Array.from(historyDocState.querySelectorAll('a[href*="Page$"]'));
-      const candidatePages = links
-        .map(a => {
-          const m = a.getAttribute('href').match(/Page\$(\d+)/);
-          return m ? Number(m[1]) : null;
-        })
-        .filter(n => n !== null && n > highestLoadedPage)
-        .sort((a, b) => a - b);
+      const nextPageNum = findNextUnloadedPageNum(historyDocState);
 
-      if (candidatePages.length === 0) {
+      if (nextPageNum === null) {
         noMoreHistoryPages = true;
         break;
       }
 
-      const nextPageNum = candidatePages[0];
       const target = `Page$${nextPageNum}`;
-      highestLoadedPage = nextPageNum;
+      loadedPageNumbers.add(nextPageNum);
       loadedInThisBatch++;
 
       banner.style.display = 'block';
@@ -627,7 +678,7 @@
   document.body.appendChild(app);
 
   document.getElementById('btn-load-more-history').addEventListener('click', () => {
-    loadMorePagesBatch(15);
+    loadMorePagesBatch(25);
   });
 
   // כפתור חזרה לעיצוב החדש
@@ -1307,7 +1358,7 @@
     }
   });
 
-  // בדיקה שקטה ברקע כל 7 שניות
+  // בדיקה שקטה ברקע כל 7 שניות (רק להודעות חדשות באמת)
   setInterval(async () => {
     try {
       const resp = await fetch(window.location.href);
@@ -1332,7 +1383,7 @@
 
   refreshContactsFromServer();
   fetchBalance();
-  loadMorePagesBatch(15);
+  loadMorePagesBatch(25);
 
   // --- 11. מחיקה פיזית של בועת הצ'אט התחתונה (Tawk) וכל רכיב חיצוני אחר ---
   const purgeFloatingWidgets = () => {
