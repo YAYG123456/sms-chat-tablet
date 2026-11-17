@@ -24,11 +24,25 @@ jobs:
         with:
           gradle-version: '8.5'
 
-      - name: Build Debug APK
-        run: gradle assembleDebug
+      - name: Enforce Android 14 SDK Targets
+        run: |
+          if [ -f app/build.gradle ]; then
+            sed -i 's/compileSdk [0-9]*/compileSdk 34/g' app/build.gradle
+            sed -i 's/targetSdk [0-9]*/targetSdk 34/g' app/build.gradle
+          fi
 
-      - name: Upload APK
+      - name: Build Unsigned Release APK
+        run: gradle assembleRelease
+
+      - name: Generate Keystore and Sign APK
+        run: |
+          keytool -genkeypair -v -keystore release.keystore -alias smskey -keyalg RSA -keysize 2048 -validity 10000 -storepass android123 -keypass android123 -dname "CN=SMSChat, OU=App, O=User, L=City, ST=State, C=IL"
+          BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
+          $BUILD_TOOLS/zipalign -v -p 4 app/build/outputs/apk/release/app-release-unsigned.apk app-aligned.apk
+          $BUILD_TOOLS/apksigner sign --ks release.keystore --ks-pass pass:android123 --key-pass pass:android123 --out app-release-signed.apk app-aligned.apk
+
+      - name: Upload Signed Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: sms-chat-tablet
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: sms-chat-tablet-release
+          path: app-release-signed.apk
