@@ -18,6 +18,12 @@
   let selectedSoundType = localStorage.getItem('sms_sound_type') || 'double_bell';
   let knownMessageIds = new Set();
 
+  // --- משתני ניהול טעינת היסטוריה הדרגתית ---
+  let historyDocState = document;
+  let highestLoadedPage = 1;
+  let isLoadingHistory = false;
+  let noMoreHistoryPages = false;
+
   function normalizePhone(num) {
     if (!num) return '';
     let clean = num.replace(/[\s\-()]/g, '');
@@ -40,7 +46,6 @@
     updateTabIconAndTitle();
   }
 
-  // ניקוי שם השולח או מספרו מתחילת גוף הודעה נכנסת וניקוי רווחי הזחה מיותרים
   function cleanIncomingMessageBody(text, senderNumber, rawNum) {
     if (!text) return '';
     let cleaned = text
@@ -71,7 +76,6 @@
     return cleaned.trim();
   }
 
-  // הפיכת טקסט לבטוח (XSS) והמרת כתובות אינטרנט לקישורים לחיצים
   function formatMessageTextWithLinks(str) {
     const escaped = escapeHtml(str || '');
     const urlRegex = /((?:https?:\/\/|www\.)[^\s<]+)/gi;
@@ -81,7 +85,7 @@
     });
   }
 
-  // --- 0. עדכון אייקון הכרטיסייה (Favicon) וכותרת הכרטיסייה עם מספר שלא נקראו ---
+  // --- 0. עדכון אייקון הכרטיסייה (Favicon) וכותרת הכרטיסייה ---
   function updateTabIconAndTitle() {
     const totalUnread = Object.values(unreadCounts).reduce((sum, n) => sum + (Number(n) || 0), 0);
     document.title = totalUnread > 0 ? `(${totalUnread}) הודעות SMS` : 'הודעות SMS';
@@ -290,7 +294,7 @@
     }
   }
 
-  // --- 2. חילוץ הודעות עם שמירה על ירידות שורה וטעינת כל עמודי ההיסטוריה ---
+  // --- 2. חילוץ הודעות וטעינת היסטוריה ללא הגבלת בלוקים ---
   function extractCellTextWithLineBreaks(cell) {
     const clone = cell.cloneNode(true);
     clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
@@ -380,40 +384,62 @@
     return changed;
   }
 
-  async function loadAllPagesInBackground() {
+  function updateLoadMoreButtonUI() {
+    const btn = document.getElementById('btn-load-more-history');
+    if (!btn) return;
+    if (noMoreHistoryPages) {
+      btn.disabled = true;
+      btn.innerText = `✓ כל ההיסטוריה נטענה (${highestLoadedPage} עמודים)`;
+      btn.style.opacity = '0.65';
+    } else if (isLoadingHistory) {
+      btn.disabled = true;
+      btn.innerText = `טוען עמוד ${highestLoadedPage + 1}...`;
+    } else {
+      btn.disabled = false;
+      btn.innerText = `📜 טען היסטוריה נוספת (נטענו ${highestLoadedPage} עמ')`;
+    }
+  }
+
+  async function loadMorePagesBatch(batchSize = 15) {
+    if (isLoadingHistory || noMoreHistoryPages) return;
     const banner = document.getElementById('sms-loading-banner');
     const form = document.querySelector('form');
     if (!form) return;
 
-    let currentDoc = document;
-    const loadedPages = new Set(['Page$1']);
-    let hasMore = true;
-    let safetyCounter = 0;
+    isLoadingHistory = true;
+    updateLoadMoreButtonUI();
 
-    while (hasMore && safetyCounter < 15) {
-      safetyCounter++;
-      const links = Array.from(currentDoc.querySelectorAll('a[href*="Page$"]'));
-      const nextLink = links.find(a => {
-        const m = a.getAttribute('href').match(/Page\$\d+/);
-        return m && !loadedPages.has(m[0]);
-      });
+    let loadedInThisBatch = 0;
 
-      if (!nextLink) {
-        hasMore = false;
+    while (loadedInThisBatch < batchSize) {
+      const links = Array.from(historyDocState.querySelectorAll('a[href*="Page$"]'));
+      const candidatePages = links
+        .map(a => {
+          const m = a.getAttribute('href').match(/Page\$(\d+)/);
+          return m ? Number(m[1]) : null;
+        })
+        .filter(n => n !== null && n > highestLoadedPage)
+        .sort((a, b) => a - b);
+
+      if (candidatePages.length === 0) {
+        noMoreHistoryPages = true;
         break;
       }
 
-      const target = nextLink.getAttribute('href').match(/Page\$\d+/)[0];
-      loadedPages.add(target);
+      const nextPageNum = candidatePages[0];
+      const target = `Page$${nextPageNum}`;
+      highestLoadedPage = nextPageNum;
+      loadedInThisBatch++;
 
       banner.style.display = 'block';
-      banner.innerText = `טוען היסטוריית הודעות (${target.replace('Page$', 'עמוד ')})...`;
+      banner.innerText = `טוען היסטוריית הודעות (עמוד ${nextPageNum})...`;
+      updateLoadMoreButtonUI();
 
       try {
         const formData = new FormData(form);
-        const vs = currentDoc.getElementById('__VIEWSTATE')?.value;
-        const vsg = currentDoc.getElementById('__VIEWSTATEGENERATOR')?.value;
-        const ev = currentDoc.getElementById('__EVENTVALIDATION')?.value;
+        const vs = historyDocState.getElementById('__VIEWSTATE')?.value;
+        const vsg = historyDocState.getElementById('__VIEWSTATEGENERATOR')?.value;
+        const ev = historyDocState.getElementById('__EVENTVALIDATION')?.value;
         if (vs) formData.set('__VIEWSTATE', vs);
         if (vsg) formData.set('__VIEWSTATEGENERATOR', vsg);
         if (ev) formData.set('__EVENTVALIDATION', ev);
@@ -425,9 +451,9 @@
           body: new URLSearchParams(formData)
         });
         const html = await resp.text();
-        currentDoc = new DOMParser().parseFromString(html, 'text/html');
+        historyDocState = new DOMParser().parseFromString(html, 'text/html');
 
-        const pageMsgs = parseMessagesFromDoc(currentDoc);
+        const pageMsgs = parseMessagesFromDoc(historyDocState);
         if (mergeMessages(pageMsgs, false)) {
           renderChatList();
           if (activeContact) renderMessages(false);
@@ -439,6 +465,8 @@
     }
 
     banner.style.display = 'none';
+    isLoadingHistory = false;
+    updateLoadMoreButtonUI();
   }
 
   async function fetchBalance() {
@@ -495,6 +523,9 @@
 
       <div class="sms-loading-banner" id="sms-loading-banner"></div>
       <div class="sms-chat-list" id="sms-chat-list"></div>
+      <div style="padding: 8px; border-top: 1px solid #e9edef; background: #f8f9fa; text-align: center;">
+        <button class="sms-icon-btn" id="btn-load-more-history" style="width: 100%; justify-content: center; font-weight: 600;">📜 טען היסטוריה נוספת</button>
+      </div>
     </div>
 
     <div class="sms-main">
@@ -594,6 +625,10 @@
     </div>
   `;
   document.body.appendChild(app);
+
+  document.getElementById('btn-load-more-history').addEventListener('click', () => {
+    loadMorePagesBatch(15);
+  });
 
   // כפתור חזרה לעיצוב החדש
   const restoreBtn = document.createElement('button');
@@ -1054,7 +1089,7 @@
     });
   });
 
-  // --- 9. חלונות ניהול אנשי קשר והודעה חדשה (מול שרת האתר) ---
+  // --- 9. חלונות ניהול אנשי קשר והודעה חדשה ---
   document.querySelectorAll('.sms-modal-close').forEach(btn => {
     btn.addEventListener('click', () => {
       document.getElementById(btn.dataset.close).classList.remove('open');
@@ -1297,7 +1332,7 @@
 
   refreshContactsFromServer();
   fetchBalance();
-  loadAllPagesInBackground();
+  loadMorePagesBatch(15);
 
   // --- 11. מחיקה פיזית של בועת הצ'אט התחתונה (Tawk) וכל רכיב חיצוני אחר ---
   const purgeFloatingWidgets = () => {
