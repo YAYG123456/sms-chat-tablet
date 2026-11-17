@@ -662,3 +662,8 @@ body.sms-modern-active {
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
+@media (max-width: 1024px) {
+  .sms-icon-btn, .sms-filter-tab, .sms-tool-btn { padding: 8px 12px !important; font-size: 14px !important; }
+  .sms-chat-item { padding: 14px 12px !important; }
+  #sms-reply-input { font-size: 16px !important; min-height: 46px !important; }
+}
